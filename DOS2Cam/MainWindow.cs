@@ -1,6 +1,10 @@
 using System.Diagnostics;
+using System.Net;
 using System.Runtime.InteropServices;
 using SharpDX.XInput;
+using System.Windows.Forms;
+using System.Linq;
+using System;
 
 namespace DOS2Cam
 {
@@ -30,6 +34,8 @@ namespace DOS2Cam
         //get addresses
         void MainWindow_Load(object sender, EventArgs e)
         {
+
+            
             controller = new Controller(UserIndex.One);
 
             var DOS2Proc = Process.GetProcesses().FirstOrDefault(p => p.ProcessName == "EoCApp" || p.ProcessName == "EoCApp");
@@ -40,9 +46,33 @@ namespace DOS2Cam
                 Environment.Exit(0);
             }
             mem = new Memory(DOS2Proc);
-            var camFuncAddr = mem.FindPattern("4C 8B 05 ? ? ? ? 41 80 B8");
-            var objBase = mem.ReadProcessMemory<int>(camFuncAddr + 3);
-            obj = mem.ReadProcessMemory<nint>(camFuncAddr + 3 + 4 + objBase);
+
+            IntPtr processHandle = mem.GetProcessHandle();
+
+            if (processHandle != IntPtr.Zero)
+            {
+                IntPtr baseAddress = DOS2Proc.MainModule.BaseAddress;
+                IntPtr finalAddress = IntPtr.Add(baseAddress, 2959898 + 0xC40);
+                Debug.WriteLine($"Base Address of the process: 0x{baseAddress.ToInt64():X}");
+                Debug.WriteLine($"Final Address after adding 2959898 and offset C40: 0x{finalAddress.ToInt64():X}");
+                CloseHandle(processHandle);
+            }
+            else
+            {
+                Console.WriteLine("Failed to get process handle from Memory class.");
+            }
+
+
+            //need to use finalAddress (minus the C40)
+            //var maxDist = IntPtr.Add(baseAddress, 2959898); ??? maybe
+
+
+            var camFuncAddr = mem.FindPattern("48 8B 05 81 FB 6F 02 C3");
+            //var camFuncAddr = mem.FindPattern("D0 E1 33 5D B3 01 00 00");
+            var objBase = mem.ReadProcessMemory<int>(camFuncAddr);
+            //var objBase = mem.ReadProcessMemory<int>(camFuncAddr + 3);
+            //obj = mem.ReadProcessMemory<nint>(camFuncAddr + 3 + 4 + objBase);
+            obj = mem.ReadProcessMemory<nint>(camFuncAddr - 3072);
 
             var camFuncBytes = mem.ReadProcessMemory(camFuncAddr, 0x100);
 
@@ -54,7 +84,7 @@ namespace DOS2Cam
 
             var maxDistOffAddr = mem.FindPattern("C3 F3 0F 10 48", bytes: camFuncBytes);
             camMaxOffset = camFuncBytes[maxDistOffAddr + 5];
-
+            
             var camMaxAbs = mem.FindPattern("F3 0F 10 80 ? ? ? ? C3", bytes: camFuncBytes);
             camMaxAbsOffset = camFuncBytes[camMaxAbs + 4];
 
@@ -67,6 +97,7 @@ namespace DOS2Cam
             var combatZoomIn = mem.FindPattern("F3 0F 11 70 5C 0F 28 74 24 20");
             combatZoomOutAddr = mem.ReadProcessMemory<int>(combatZoomIn);
 
+            
             var curMaxZoom = AddDefaultVal(obj + worldCamOffset + camMaxOffset); // default val is 12, addr offset is 0x7b4 in release patch
             if (curMaxZoom != 12)
             {
@@ -74,6 +105,8 @@ namespace DOS2Cam
                 if (res == DialogResult.Abort)
                     Environment.Exit(0);
             }
+            
+
             maxZoomVal.Value = (decimal)24f;
             minZoomVal.Value = (decimal)0.5f;
             panSpeedVal.Value = (decimal)100f;
@@ -84,6 +117,7 @@ namespace DOS2Cam
             tacticalZoomMaxVal.Value = (decimal)100f;
             tacticalZoomMinVal.Value = (decimal)10f;
 
+            
             curTilt = AddDefaultVal(obj + worldCamOffset + camTiltOffset);
             AddDefaultVal(obj + worldCamOffset + camTiltOffset);
             AddDefaultVal(obj + worldCamOffset + camTiltOffset + 4);
@@ -121,9 +155,66 @@ namespace DOS2Cam
             mem.WriteProcessMemory(obj + worldCamOffset + camTiltOffset, curTilt);
             mem.WriteProcessMemory(obj + worldCamOffset + camTiltOffset + 4, curTilt);
             ChangePitchOnMouseMove();
-        }
 
-        bool running = true;
+        //Debug.WriteLine($"Camera Tilt Speed: {camTiltSpeedOffset}");
+        //mem.WriteProcessMemory(obj + worldCamOffset + camTiltSpeedOffset + 240, (float)panSpeedVal.Value);
+        Debug.WriteLine($"1: {AddDefaultVal(obj)}");
+        Debug.WriteLine($"2: {AddDefaultVal(obj + worldCamOffset)}");
+        Debug.WriteLine($"3: {AddDefaultVal(obj + worldCamOffset + camMaxOffset)}");
+        Debug.WriteLine($"4: {AddDefaultVal(obj + 4)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 8)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 12)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 16)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 20)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 24)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 28)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 32)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 36)}");
+        /*
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 40)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 44)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 48)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 52)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 56)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 60)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 64)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 68)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 72)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 76)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 80)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 84)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 88)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 92)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 96)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 100)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 104)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 108)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 112)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 116)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 120)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 124)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 128)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 132)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 136)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 140)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 144)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 148)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 152)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 156)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 160)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 164)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 168)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 172)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 176)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 180)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 184)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 188)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 192)}");
+        Debug.WriteLine($"1: {AddDefaultVal(obj + 196)}");
+        */
+        }
+        
+            bool running = true;
         float AddDefaultVal(nint addr)
         {
             defaultVals[addr] = mem.ReadProcessMemory<float>(addr);
@@ -136,11 +227,13 @@ namespace DOS2Cam
         }
         void checkBox1_CheckedChanged(object sender, EventArgs e)
         {
+            //AOB scan for Combat Camera Zoom
             string pattern = "F3 45 0F 11 4C 24 5C";
             string pattern2 = "F3 0F 11 70 5C";
             List<nint> foundAddresses = mem.FindPatterns(pattern);
             List<nint> foundAddresses2 = mem.FindPatterns(pattern2);
 
+            //writing empty bytes
             if (checkBox1.CheckState == CheckState.Checked)
             {
                 byte[] nopBytes = new byte[] { 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90 }; // NOP instruction
@@ -156,6 +249,7 @@ namespace DOS2Cam
                 }
 
             }
+            //replacing orgignal code
             if (checkBox1.CheckState == CheckState.Unchecked)
             {
                 for (int i = 0; i < 1; i++)
@@ -170,6 +264,16 @@ namespace DOS2Cam
                     ReplaceBytes(address, original);
                 }
             }
+            /* //error message when pattern wrong or not found
+            if (foundAddresses != )
+
+            {
+                var res = MessageBox.Show("Adress Not Found", MessageBoxButtons.AbortRetryIgnore);
+                if (res == DialogResult.Abort)
+                    Environment.Exit(0);
+            }
+            */
+;
         }
         void ReplaceBytes(nint address, byte[] newBytes)
         {
@@ -278,6 +382,9 @@ namespace DOS2Cam
             }
         }
 
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        static extern bool CloseHandle(IntPtr hObject);
     }
 }
 
