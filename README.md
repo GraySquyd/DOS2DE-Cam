@@ -1,4 +1,7 @@
-# BG3Cam
+#CURRENTLY NOT WORKING, JUST A TEMPLATE REPO FOR WHEN ITS FINISHED
+
+
+# DOS2DeCam
  Divinity Original Sin 2 camera mod to zoom and tilt the camera
 # Instructions
 1. Open Divinity Original Sin 2 Definitive Edition
